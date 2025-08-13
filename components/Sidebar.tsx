@@ -55,9 +55,13 @@ export function Sidebar() {
     },
   ];
 
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = "/";
+  };
+
   return (
     <>
-      {/* Mobile menu button */}
       <div className="md:hidden fixed top-4 left-4 z-50">
         <Button
           variant="outline"
@@ -73,7 +77,6 @@ export function Sidebar() {
         </Button>
       </div>
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed top-0 left-0 h-screen bg-background border-r z-40",
@@ -83,7 +86,6 @@ export function Sidebar() {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Sidebar header */}
           <div
             className={cn(
               "flex items-center justify-between p-4 border-b",
@@ -108,7 +110,6 @@ export function Sidebar() {
             </Button>
           </div>
 
-          {/* Navigation items */}
           <nav className="flex-1 p-2 overflow-y-auto">
             <ul className="space-y-1">
               {navItems.map((item) => {
@@ -144,7 +145,6 @@ export function Sidebar() {
             </ul>
           </nav>
 
-          {/* User profile with logout */}
           <div
             className={cn(
               "p-4 border-t flex items-center",
@@ -167,6 +167,7 @@ export function Sidebar() {
                   size="icon"
                   className="h-8 w-8"
                   title="Logout"
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -180,7 +181,6 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Overlay for mobile */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 bg-black/50 md:hidden z-30"

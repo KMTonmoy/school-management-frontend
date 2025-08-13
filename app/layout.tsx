@@ -1,8 +1,8 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import AuthWrapper from "@/components/auth-wrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,12 +29,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <header className="flex justify-end p-4">
-          <LanguageSwitcher />
-        </header>
-
-        <Sidebar />
-        <main className="flex-1 md:ml-64 overflow-auto p-6">{children}</main>
+        <AuthWrapper>{children}</AuthWrapper>
       </body>
     </html>
   );
