@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useAuthRedirect } from '@/Hooks/useAuthRedirect'
 
 type User = {
   id: string
@@ -134,6 +135,7 @@ export default function Result() {
     setCurrentResult(null)
     setIsDialogOpen(false)
   }
+useAuthRedirect();
 
   return (
     <div className="container mx-auto py-8">

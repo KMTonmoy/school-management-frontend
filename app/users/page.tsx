@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { UserForm } from "@/components/UserForm";
+import { useAuthRedirect } from "@/Hooks/useAuthRedirect";
 
 type User = {
   id: string;
@@ -112,6 +113,7 @@ const UsersPage = () => {
     }
     setIsDialogOpen(false);
   };
+useAuthRedirect();
 
   return (
     <div className="container mx-auto py-8">

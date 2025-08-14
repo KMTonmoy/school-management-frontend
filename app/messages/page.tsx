@@ -37,6 +37,7 @@ import {
 import { FiSend, FiX, FiUser, FiUsers, FiUserPlus } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { Label } from "@/components/label";
+import { useAuthRedirect } from "@/Hooks/useAuthRedirect";
 
 type Student = {
   id: number;
@@ -198,6 +199,8 @@ const Messages = () => {
     setSelectedStudents([]);
     setSelectedGuardians([]);
   };
+
+  useAuthRedirect();
 
   return (
     <div className="p-6">
