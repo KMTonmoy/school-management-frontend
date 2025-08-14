@@ -197,10 +197,10 @@ export function Sidebar() {
             </ul>
           </nav>
 
-          <div className="px-4 py-3 border-b w-full">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="px-4 py-3 border-b  flex items-center gap-5  w-full">
+            <div className="flex mr5 items-center gap-2 text-sm text-muted-foreground">
               <Languages className="h-4 w-4" />
-              <span>Language</span>
+              <span>Language:</span>
             </div>
             <div className="mt-2">
               <GoogleTranslate />

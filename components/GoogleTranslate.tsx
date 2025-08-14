@@ -40,9 +40,9 @@ export const GoogleTranslate = () => {
       new window.google.translate.TranslateElement(
         {
           pageLanguage: "en",
-          includedLanguages: "en,bn",
+          includedLanguages: "en,bn,ru,fr,el,hi,mr,es,de,it,ja,zh-CN,ar,pt,tr",
           layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
-          autoDisplay: false
+          autoDisplay: false,
         },
         "google-translate-element"
       );
@@ -57,10 +57,17 @@ export const GoogleTranslate = () => {
 
   return (
     <div className="flex justify-center">
-      <div className="bg-white/40 backdrop-blur-md shadow-lg rounded-xl px-4 py-2 border border-white/30 flex items-center gap-2 hover:shadow-xl transition-all duration-300">
-        <span className="text-sm font-semibold text-gray-800">
-          🌐 Translate:
-        </span>
+      <div
+        className="bg-white/40 backdrop-blur-md shadow-lg rounded-xl px-4 py-2 border border-white/30 flex items-center gap-2 hover:shadow-xl transition-all duration-300 cursor-pointer"
+        onClick={() =>
+          document
+            .querySelector<HTMLSelectElement>(
+              "#google-translate-element select"
+            )
+            ?.focus()
+        }
+      >
+       
         <div
           id="google-translate-element"
           className="inline-block translate-dropdown"
