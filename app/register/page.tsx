@@ -23,8 +23,8 @@ import {
   UserCog,
 } from "lucide-react";
 import axios from "axios";
-import { toast } from "sonner";
 import { Label } from "@/components/label";
+import toast from "react-hot-toast";
 
 const RegisterPage = () => {
   const router = useRouter();
@@ -72,23 +72,20 @@ const RegisterPage = () => {
         formData
       );
 
-      toast.success("Account created successfully!", {
-        description: "You can now login with your credentials",
-      });
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("role", response.data.role);
 
+      toast.success("Account created successfully!");
       setTimeout(() => {
-        router.push("/login");
-      }, 1500);
+        window.location.href = "/";
+      }, 1000);
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        toast.error("Registration failed", {
-          description:
-            error.response?.data?.message || "Please check your details",
-        });
+        toast.error(
+          error.response?.data?.message || "Registration failed. Please check your details"
+        );
       } else {
-        toast.error("An error occurred", {
-          description: "Please try again later",
-        });
+        toast.error("An error occurred. Please try again later");
       }
     } finally {
       setLoading(false);
@@ -119,7 +116,6 @@ const RegisterPage = () => {
 
           <form onSubmit={handleSubmit}>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-              {/* Student Information */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -235,7 +231,6 @@ const RegisterPage = () => {
                 </div>
               </motion.div>
 
-              {/* Guardian Information */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

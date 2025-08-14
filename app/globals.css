@@ -3,6 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+ #google_translate_element{
+  width: 800px;
+ }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -10,29 +10,33 @@ import {
   X,
   Settings,
   LogOut,
+  Bookmark,
+  MessageSquare,
+  FileText,
+  Languages,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useUserFromToken } from "@/Hooks/useUserFromToken";
+import { GoogleTranslate } from "./GoogleTranslate";
 
 export function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { user } = useUserFromToken();
 
-  const navItems = [
+  const adminNavItems = [
     {
       title: "Dashboard",
       icon: <LayoutDashboard className="h-5 w-5" />,
       href: "/",
     },
-    {
-      title: "Users",
-      icon: <Users className="h-5 w-5" />,
-      href: "/users",
-    },
+    { title: "Users", icon: <Users className="h-5 w-5" />, href: "/users" },
     {
       title: "Classes",
       icon: <BookOpen className="h-5 w-5" />,
@@ -55,18 +59,62 @@ export function Sidebar() {
     },
   ];
 
+  const teacherNavItems = [
+    {
+      title: "Dashboard",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      href: "/",
+    },
+    {
+      title: "My Classes",
+      icon: <BookOpen className="h-5 w-5" />,
+      href: "/my-classes",
+    },
+    {
+      title: "Give Results",
+      icon: <FileText className="h-5 w-5" />,
+      href: "/give-results",
+    },
+    {
+      title: "Messages",
+      icon: <MessageSquare className="h-5 w-5" />,
+      href: "/messages",
+    },
+  ];
+
+  const studentNavItems = [
+    {
+      title: "Dashboard",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      href: "/",
+    },
+    {
+      title: "My Results",
+      icon: <Bookmark className="h-5 w-5" />,
+      href: "/my-results",
+    },
+  ];
+
+  const navItems =
+    user?.role === "admin"
+      ? adminNavItems
+      : user?.role === "teacher"
+      ? teacherNavItems
+      : studentNavItems;
+
   const handleLogout = () => {
     localStorage.clear();
-    window.location.href = "/";
+    window.location.href = "/login";
   };
 
   return (
     <>
+      {/* Mobile Toggle Button */}
       <div className="md:hidden fixed top-4 left-4 z-50">
         <Button
           variant="outline"
           size="icon"
-          className="rounded-full shadow-sm"
+          className="rounded-lg shadow-sm bg-background/80 backdrop-blur-sm"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
         >
           {isMobileOpen ? (
@@ -77,40 +125,44 @@ export function Sidebar() {
         </Button>
       </div>
 
+      {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 h-screen bg-background border-r z-40",
-          "shadow-lg transition-all duration-300",
+          "fixed top-0 left-0 h-screen bg-background border-r z-40 transition-all duration-300 ease-in-out",
+          "shadow-lg",
           isCollapsed ? "w-20" : "w-64",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          !isMobileOpen && "-translate-x-full md:translate-x-0"
         )}
       >
         <div className="flex flex-col h-full">
+          {/* Header */}
           <div
             className={cn(
-              "flex items-center justify-between p-4 border-b",
-              isCollapsed ? "flex-col gap-2" : "flex-row"
+              "flex items-center p-4 border-b",
+              "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground",
+              isCollapsed ? "justify-center" : "justify-between"
             )}
           >
             {!isCollapsed && (
-              <h1 className="text-xl font-semibold text-primary">SchoolPro</h1>
+              <h1 className="text-xl font-bold tracking-tight">SchoolPro</h1>
             )}
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full hover:bg-accent"
+              className="text-primary-foreground hover:bg-primary/80 rounded-full"
               onClick={() => setIsCollapsed(!isCollapsed)}
             >
               <ChevronLeft
                 className={cn(
-                  "h-5 w-5 transition-transform",
-                  isCollapsed ? "rotate-180" : ""
+                  "h-5 w-5 transition-transform duration-300",
+                  isCollapsed && "rotate-180"
                 )}
               />
             </Button>
           </div>
 
-          <nav className="flex-1 p-2 overflow-y-auto">
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto py-2 px-1">
             <ul className="space-y-1">
               {navItems.map((item) => {
                 const isActive =
@@ -122,7 +174,7 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "flex items-center p-3 rounded-lg transition-colors relative",
+                        "flex items-center p-3 rounded-lg transition-colors mx-1",
                         "hover:bg-accent hover:text-accent-foreground",
                         isActive
                           ? "bg-primary/10 text-primary font-medium"
@@ -145,45 +197,65 @@ export function Sidebar() {
             </ul>
           </nav>
 
+          <div className="px-4 py-3 border-b w-full">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Languages className="h-4 w-4" />
+              <span>Language</span>
+            </div>
+            <div className="mt-2">
+              <GoogleTranslate />
+            </div>
+          </div>
+
+          {/* User Profile */}
           <div
             className={cn(
-              "p-4 border-t flex items-center",
-              isCollapsed ? "justify-center" : "justify-between"
+              "p-3 border-t",
+              isCollapsed ? "flex justify-center" : ""
             )}
           >
-            {!isCollapsed ? (
-              <div className="flex items-center gap-3 w-full">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white">
-                  <span className="font-medium">A</span>
-                </div>
-                <div className="truncate flex-1">
-                  <p className="font-medium">Admin User</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    admin@school.edu
-                  </p>
-                </div>
+            <div
+              className={cn(
+                "flex items-center gap-3 p-2 rounded-lg",
+                isCollapsed ? "justify-center" : "justify-between"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {user?.name?.[0] || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                {!isCollapsed && (
+                  <div className="overflow-hidden">
+                    <p className="font-medium truncate">
+                      {user?.name || "User"}
+                    </p>
+                    <p className="text-xs text-muted-foreground capitalize truncate">
+                      {user?.role || "Student"}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {!isCollapsed && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
-                  title="Logout"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
                   onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white">
-                <span className="font-medium">A</span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </aside>
 
+      {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 md:hidden z-30"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
