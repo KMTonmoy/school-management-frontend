@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -25,173 +24,154 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
+import axios from "axios";
 
 type User = {
-  id: string;
-  email: string;
-  role: "ADMIN" | "TEACHER" | "STUDENT";
-  firstName: string;
-  lastName: string;
-};
-
-type Class = {
-  id: string;
+  _id: string;
   name: string;
-  teacherId: string;
-  studentIds: string[];
+  email: string;
+  role: "admin" | "teacher" | "student";
+  isBlocked: boolean;
 };
 
-type Result = {
-  id: string;
-  studentId: string;
-  subject: string;
-  marks: number;
-  grade: string;
+type Assignment = {
+  _id: string;
+  teacher: User;
+  student: User;
+  assignedAt: string;
+  assignedBy: User;
 };
 
-export default function Classes() {
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [results, setResults] = useState<Result[]>([]);
-  const [currentClass, setCurrentClass] = useState<Class | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [className, setClassName] = useState("");
+const API_BASE_URL = "http://localhost:8000/api";
+
+export default function AssignmentManager() {
+  const [teachers, setTeachers] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock data initialization
+  // Get current user role from localStorage
+  const currentUserRole =
+    typeof window !== "undefined"
+      ? (localStorage.getItem("role") as "admin" | "teacher" | "student")
+      : null;
+
   useEffect(() => {
-    const mockUsers: User[] = [
-      {
-        id: "1",
-        email: "admin@school.edu",
-        role: "ADMIN",
-        firstName: "Admin",
-        lastName: "User",
-      },
-      {
-        id: "2",
-        email: "teacher@school.edu",
-        role: "TEACHER",
-        firstName: "Jane",
-        lastName: "Smith",
-      },
-      {
-        id: "3",
-        email: "student1@school.edu",
-        role: "STUDENT",
-        firstName: "John",
-        lastName: "Doe",
-      },
-      {
-        id: "4",
-        email: "student2@school.edu",
-        role: "STUDENT",
-        firstName: "Alice",
-        lastName: "Johnson",
-      },
-    ];
-
-    const mockClasses: Class[] = [
-      { id: "1", name: "Math 101", teacherId: "2", studentIds: ["3", "4"] },
-    ];
-
-    const mockResults: Result[] = [
-      { id: "1", studentId: "3", subject: "Math", marks: 85, grade: "A" },
-      { id: "2", studentId: "4", subject: "Math", marks: 92, grade: "A+" },
-    ];
-
-    setUsers(mockUsers);
-    setClasses(mockClasses);
-    setResults(mockResults);
-    setCurrentUser(mockUsers[0]); // Simulate admin logged in
+    fetchData();
   }, []);
 
-  const getFilteredClasses = () => {
-    if (!currentUser) return [];
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch teachers and students without token
+      const [teachersRes, studentsRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/teachers`),
+        axios.get(`${API_BASE_URL}/students`),
+      ]);
 
-    if (currentUser.role === "ADMIN") return classes;
-    if (currentUser.role === "TEACHER")
-      return classes.filter((c) => c.teacherId === currentUser.id);
-    if (currentUser.role === "STUDENT")
-      return classes.filter((c) => c.studentIds.includes(currentUser.id));
+      setTeachers(teachersRes.data);
+      setStudents(studentsRes.data);
 
-    return [];
-  };
-
-  const getFilteredStudents = () => {
-    if (!currentUser) return [];
-
-    if (currentUser.role === "ADMIN")
-      return users.filter((u) => u.role === "STUDENT");
-    if (currentUser.role === "TEACHER") {
-      const teacherClasses = classes.filter(
-        (c) => c.teacherId === currentUser.id
-      );
-      const studentIds = teacherClasses.flatMap((c) => c.studentIds);
-      return users.filter((u) => studentIds.includes(u.id));
+      // Fetch assignments with token if available
+      const token = localStorage.getItem("token");
+      if (token) {
+        const headers = { Authorization: `Bearer ${token}` };
+        const assignmentsRes = await axios.get(
+          `${API_BASE_URL}/assign/assignments`,
+          { headers }
+        );
+        setAssignments(assignmentsRes.data);
+      }
+    } catch (error) {
+      toast.error("Failed to load data");
+      console.error("Error fetching data:", error);
+    } finally {
+      setIsLoading(false);
     }
-    if (currentUser.role === "STUDENT")
-      return users.filter((u) => u.id === currentUser.id);
-
-    return [];
   };
 
-  const handleSubmitClass = () => {
-    if (!className || !selectedTeacher) return;
-
-    const classData = {
-      id: currentClass?.id || Date.now().toString(),
-      name: className,
-      teacherId: selectedTeacher,
-      studentIds: selectedStudents,
-    };
-
-    if (currentClass) {
-      setClasses(
-        classes.map((c) => (c.id === currentClass.id ? classData : c))
-      );
-    } else {
-      setClasses([...classes, classData]);
+  const handleAssignStudents = async () => {
+    if (!selectedTeacher || selectedStudents.length === 0) {
+      toast.warning("Please select both teacher and students");
+      return;
     }
 
-    resetForm();
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Always use bulk assignment endpoint for simplicity
+      const response = await axios.post(
+        `${API_BASE_URL}/assign/bulk`,
+        {
+          teacherId: selectedTeacher,
+          studentIds: selectedStudents,
+        },
+        { headers }
+      );
+
+      if (response.data.success) {
+        await fetchData(); // Refresh data
+        toast.success(`Assigned ${response.data.assignedCount} students`);
+      } else {
+        toast.warning(`Some assignments failed: ${response.data.message}`);
+      }
+
+      setIsDialogOpen(false);
+      setSelectedTeacher("");
+      setSelectedStudents([]);
+    } catch (error) {
+      toast.error("Assignment failed. Please log in as admin.");
+      console.error("Error assigning students:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDeleteClass = (id: string) => {
-    setClasses(classes.filter((c) => c.id !== id));
-  };
+  const handleUnassignStudent = async (assignmentId: string) => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required");
+      }
 
-  const resetForm = () => {
-    setClassName("");
-    setSelectedTeacher("");
-    setSelectedStudents([]);
-    setCurrentClass(null);
-    setIsDialogOpen(false);
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.delete(`${API_BASE_URL}/assignment/${assignmentId}`);
+
+      setAssignments(assignments.filter((a) => a._id !== assignmentId));
+      toast.success("Student unassigned successfully");
+    } catch (error) {
+      toast.error("Unassignment failed. Please log in as admin.");
+      console.error("Error unassigning student:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Class Management</h1>
-        {currentUser?.role === "ADMIN" && (
+        <h1 className="text-2xl font-bold">Student-Teacher Assignments</h1>
+        {currentUserRole === "admin" && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => setCurrentClass(null)}>Add Class</Button>
+              <Button>Assign Students</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>
-                  {currentClass ? "Edit Class" : "Create New Class"}
-                </DialogTitle>
+                <DialogTitle>Assign Students to Teacher</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  placeholder="Class Name"
-                  value={className}
-                  onChange={(e) => setClassName(e.target.value)}
-                />
                 <Select
                   value={selectedTeacher}
                   onValueChange={setSelectedTeacher}
@@ -200,13 +180,11 @@ export default function Classes() {
                     <SelectValue placeholder="Select Teacher" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users
-                      .filter((u) => u.role === "TEACHER")
-                      .map((teacher) => (
-                        <SelectItem key={teacher.id} value={teacher.id}>
-                          {teacher.firstName} {teacher.lastName}
-                        </SelectItem>
-                      ))}
+                    {teachers.map((teacher) => (
+                      <SelectItem key={teacher._id} value={teacher._id}>
+                        {teacher.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select
@@ -221,26 +199,24 @@ export default function Classes() {
                     <SelectValue placeholder="Add Students" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users
-                      .filter((u) => u.role === "STUDENT")
+                    {students
+                      .filter((student) => !student.isBlocked)
                       .map((student) => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.firstName} {student.lastName}
+                        <SelectItem key={student._id} value={student._id}>
+                          {student.name}
                         </SelectItem>
                       ))}
                   </SelectContent>
                 </Select>
                 <div className="flex flex-wrap gap-2">
                   {selectedStudents.map((studentId) => {
-                    const student = users.find((u) => u.id === studentId);
+                    const student = students.find((s) => s._id === studentId);
                     return student ? (
                       <div
                         key={studentId}
                         className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full"
                       >
-                        <span>
-                          {student.firstName} {student.lastName}
-                        </span>
+                        <span>{student.name}</span>
                         <button
                           onClick={() =>
                             setSelectedStudents(
@@ -256,11 +232,18 @@ export default function Classes() {
                   })}
                 </div>
                 <div className="flex justify-end gap-4">
-                  <Button variant="outline" onClick={resetForm}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      setSelectedTeacher("");
+                      setSelectedStudents([]);
+                    }}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={handleSubmitClass}>
-                    {currentClass ? "Update" : "Create"} Class
+                  <Button onClick={handleAssignStudents} disabled={isLoading}>
+                    {isLoading ? "Assigning..." : "Assign Students"}
                   </Button>
                 </div>
               </div>
@@ -271,106 +254,37 @@ export default function Classes() {
 
       <div className="space-y-8">
         <section>
-          <h2 className="text-xl font-semibold mb-4">Classes</h2>
+          <h2 className="text-xl font-semibold mb-4">Current Assignments</h2>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Class Name</TableHead>
                 <TableHead>Teacher</TableHead>
-                <TableHead>Students</TableHead>
-                {currentUser?.role === "ADMIN" && (
-                  <TableHead>Actions</TableHead>
-                )}
+                <TableHead>Student</TableHead>
+                <TableHead>Assigned At</TableHead>
+                {currentUserRole === "admin" && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {getFilteredClasses().map((cls) => {
-                const teacher = users.find((u) => u.id === cls.teacherId);
-                return (
-                  <TableRow key={cls.id}>
-                    <TableCell>{cls.name}</TableCell>
-                    <TableCell>
-                      {teacher
-                        ? `${teacher.firstName} ${teacher.lastName}`
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {cls.studentIds.map((studentId) => {
-                          const student = users.find((u) => u.id === studentId);
-                          return student ? (
-                            <span
-                              key={studentId}
-                              className="bg-gray-100 px-2 py-1 rounded-full text-sm"
-                            >
-                              {student.firstName} {student.lastName}
-                            </span>
-                          ) : null;
-                        })}
-                      </div>
-                    </TableCell>
-                    {currentUser?.role === "ADMIN" && (
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setCurrentClass(cls);
-                              setClassName(cls.name);
-                              setSelectedTeacher(cls.teacherId);
-                              setSelectedStudents(cls.studentIds);
-                              setIsDialogOpen(true);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-500"
-                            onClick={() => handleDeleteClass(cls.id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-semibold mb-4">Students</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {getFilteredStudents().map((user) => (
-                <TableRow key={user.id}>
+              {assignments.map((assignment) => (
+                <TableRow key={assignment._id}>
+                  <TableCell>{assignment.teacher?.name}</TableCell>
+                  <TableCell>{assignment.student?.name}</TableCell>
                   <TableCell>
-                    {user.firstName} {user.lastName}
+                    {new Date(assignment.assignedAt).toLocaleString()}
                   </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        user.role === "STUDENT"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-purple-100 text-purple-800"
-                      }`}
-                    >
-                      {user.role}
-                    </span>
-                  </TableCell>
+                  {currentUserRole === "admin" && (
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-500"
+                        onClick={() => handleUnassignStudent(assignment._id)}
+                        disabled={isLoading}
+                      >
+                        Unassign
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
