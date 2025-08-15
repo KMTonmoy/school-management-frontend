@@ -65,11 +65,7 @@ export function Sidebar() {
       icon: <LayoutDashboard className="h-5 w-5" />,
       href: "/",
     },
-    {
-      title: "My Classes",
-      icon: <BookOpen className="h-5 w-5" />,
-      href: "/my-classes",
-    },
+
     {
       title: "Give Results",
       icon: <FileText className="h-5 w-5" />,
