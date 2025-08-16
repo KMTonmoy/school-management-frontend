@@ -68,7 +68,7 @@ const RegisterPage = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/auth/register/student",
+        "https://sl-backend-nine.vercel.app/api/auth/register/student",
         formData
       );
 

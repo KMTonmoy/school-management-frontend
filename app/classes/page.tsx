@@ -43,7 +43,7 @@ type Assignment = {
   assignedBy: User;
 };
 
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = "https://sl-backend-nine.vercel.app/api";
 
 export default function AssignmentManager() {
   const [teachers, setTeachers] = useState<User[]>([]);

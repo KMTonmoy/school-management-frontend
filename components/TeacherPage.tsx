@@ -41,10 +41,15 @@ const TeacherDashboard = () => {
   const fetchData = async () => {
     try {
       const [studentsRes, resultsRes] = await Promise.all([
-        axios.get<Student[]>("http://localhost:8000/api/teacher/students", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
-        axios.get<Result[]>("http://localhost:8000/api/teacher", {
+        axios.get<Student[]>(
+          "https://sl-backend-nine.vercel.app/api/teacher/students",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        ),
+        axios.get<Result[]>("https://sl-backend-nine.vercel.app/api/teacher", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }),
       ]);
@@ -121,7 +126,9 @@ const TeacherDashboard = () => {
         {/* Students Count Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Students
+            </CardTitle>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -148,7 +155,9 @@ const TeacherDashboard = () => {
         {/* Results Count Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Results Recorded</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Results Recorded
+            </CardTitle>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
