@@ -43,19 +43,14 @@ export function Sidebar() {
       href: "/classes",
     },
     {
-      title: "Results",
+      title: "Give Results",
       icon: <GraduationCap className="h-5 w-5" />,
-      href: "/results",
+      href: "/give-results",
     },
     {
       title: "Messages",
       icon: <Mail className="h-5 w-5" />,
       href: "/messages",
-    },
-    {
-      title: "Settings",
-      icon: <Settings className="h-5 w-5" />,
-      href: "/settings",
     },
   ];
 
@@ -105,7 +100,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile Toggle Button */}
       <div className="md:hidden fixed top-4 left-4 z-50">
         <Button
           variant="outline"
