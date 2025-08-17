@@ -13,7 +13,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Mail, Lock, UserPlus } from "lucide-react";
-import { toast } from "sonner";
+import toast, { Toaster } from "react-hot-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/label";
 
@@ -28,40 +28,105 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Basic validation
+    if (!email || !password) {
+      toast.error("Please fill in all fields");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch("https://sl-backend-nine.vercel.app/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "https://sl-backend-nine.vercel.app/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       const data = await response.json();
 
       if (response.ok) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("role", data.role);
-        toast.success("Login successful", {
-          description: "Welcome back! Redirecting...",
+
+        toast.success("Welcome back! Redirecting to your dashboard...", {
+          duration: 4000,
         });
-        router.push("/");
+
+        // Store remember me preference
+        if (rememberMe) {
+          localStorage.setItem("rememberEmail", email);
+        } else {
+          localStorage.removeItem("rememberEmail");
+        }
+
+        // Force full page refresh to ensure all auth state is properly loaded
+        window.location.href = "/";
       } else {
-        toast.error("Login failed", {
-          description: data.message || "Please check your credentials",
+        let errorMessage = "Login failed";
+        if (data.message) {
+          if (data.message.includes("email")) {
+            errorMessage = "Invalid email address";
+          } else if (data.message.includes("password")) {
+            errorMessage = "Incorrect password";
+          } else {
+            errorMessage = data.message;
+          }
+        }
+
+        toast.error(errorMessage, {
+          duration: 5000,
         });
+        setPassword("");
+        document.getElementById("password")?.focus();
       }
     } catch (err) {
-      toast.error("Network error", {
-        description: "Please try again later",
+      toast.error("Could not connect to the server. Please try again later.", {
+        duration: 5000,
       });
     } finally {
       setLoading(false);
     }
   };
 
+  // Pre-fill email if remember me was checked previously
+  useState(() => {
+    const rememberedEmail = localStorage.getItem("rememberEmail");
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#10B981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -102,6 +167,7 @@ const LoginPage = () => {
                       placeholder="you@example.com"
                       className="pl-10"
                       required
+                      autoComplete="email"
                     />
                   </div>
                 </div>
@@ -118,6 +184,7 @@ const LoginPage = () => {
                       placeholder="••••••••"
                       className="pl-10"
                       required
+                      autoComplete={rememberMe ? "current-password" : "off"}
                     />
                   </div>
                 </div>
@@ -140,6 +207,11 @@ const LoginPage = () => {
                     variant="link"
                     className="text-indigo-600 p-0 h-auto text-sm"
                     type="button"
+                    onClick={() =>
+                      toast("Please contact support to reset your password", {
+                        icon: 'ℹ️',
+                      })
+                    }
                   >
                     Forgot password?
                   </Button>
