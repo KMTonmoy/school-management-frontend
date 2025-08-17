@@ -55,7 +55,7 @@ interface Teacher {
 interface Result {
   _id: string;
   student: Student;
-  teacher: Teacher;
+  teacher: Teacher | { _id: "admin"; name: string };
   subject: string;
   marks: number;
   date: string;
@@ -72,7 +72,6 @@ interface DecodedToken {
 
 const AdminGiveResults = () => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -80,7 +79,6 @@ const AdminGiveResults = () => {
   const [editingResult, setEditingResult] = useState<Result | null>(null);
   const [newResult, setNewResult] = useState({
     studentId: "",
-    teacherId: "",
     subject: "",
     marks: "",
   });
@@ -94,13 +92,11 @@ const AdminGiveResults = () => {
 
   const fetchAllData = async () => {
     try {
-      const [studentsRes, teachersRes, resultsRes] = await Promise.all([
+      const [studentsRes, resultsRes] = await Promise.all([
         axios.get<Student[]>("http://localhost:8000/api/students"),
-        axios.get<Teacher[]>("http://localhost:8000/api/teachers"),
         axios.get<Result[]>("http://localhost:8000/api/all-results"),
       ]);
       setStudents(studentsRes.data);
-      setTeachers(teachersRes.data);
       setResults(resultsRes.data);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -174,7 +170,6 @@ const AdminGiveResults = () => {
     setEditingResult(result);
     setNewResult({
       studentId: result.student._id,
-      teacherId: result.teacher._id,
       subject: result.subject,
       marks: result.marks.toString(),
     });
@@ -182,7 +177,7 @@ const AdminGiveResults = () => {
   };
 
   const submitResult = async () => {
-    if (!newResult.studentId || !newResult.subject || !newResult.marks || !newResult.teacherId) {
+    if (!newResult.studentId || !newResult.subject || !newResult.marks) {
       toast.error("Please fill all fields");
       return;
     }
@@ -196,14 +191,13 @@ const AdminGiveResults = () => {
 
       const payload = {
         studentId: newResult.studentId,
-        teacherId: newResult.teacherId,
         subject: newResult.subject,
         marks: marksNum,
       };
 
       const url = editingResult
         ? `http://localhost:8000/api/admin/${editingResult._id}`
-        : "http://localhost:8000/api/admin";
+        : "http://localhost:8000/api/admin-addRes";
 
       const method = editingResult ? "patch" : "post";
 
@@ -219,7 +213,7 @@ const AdminGiveResults = () => {
           fetchAllData();
           setShowModal(false);
           setEditingResult(null);
-          setNewResult({ studentId: "", teacherId: "", subject: "", marks: "" });
+          setNewResult({ studentId: "", subject: "", marks: "" });
           return editingResult ? "Result updated!" : "Result added!";
         },
         error: (error) => {
@@ -289,7 +283,7 @@ const AdminGiveResults = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Student</TableHead>
-                    <TableHead>Teacher</TableHead>
+                    <TableHead>Added By</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Marks</TableHead>
                     <TableHead>Grade</TableHead>
@@ -303,15 +297,15 @@ const AdminGiveResults = () => {
                       <TableCell className="font-medium">
                         {result.student.name}
                       </TableCell>
-                      <TableCell>{result.teacher.name}</TableCell>
+                      <TableCell>
+                        {result.teacher._id === "admin" ? "Admin" : result.teacher.name}
+                      </TableCell>
                       <TableCell>{result.subject}</TableCell>
                       <TableCell>{result.marks}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={getGradeColor(
-                            calculateGrade(result.marks)
-                          )}
+                          className={getGradeColor(calculateGrade(result.marks))}
                         >
                           {calculateGrade(result.marks)}
                         </Badge>
@@ -351,7 +345,7 @@ const AdminGiveResults = () => {
         onOpenChange={(open) => {
           if (!open) {
             setEditingResult(null);
-            setNewResult({ studentId: "", teacherId: "", subject: "", marks: "" });
+            setNewResult({ studentId: "", subject: "", marks: "" });
           }
           setShowModal(open);
         }}
@@ -383,33 +377,6 @@ const AdminGiveResults = () => {
                     {students.map((student) => (
                       <SelectItem key={student._id} value={student._id}>
                         {student.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Teacher</label>
-              {editingResult ? (
-                <div className="p-2 border rounded-md bg-gray-50">
-                  {editingResult.teacher.name}
-                </div>
-              ) : (
-                <Select
-                  value={newResult.teacherId}
-                  onValueChange={(value) =>
-                    handleNewResultChange("teacherId", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Teacher" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teachers.map((teacher) => (
-                      <SelectItem key={teacher._id} value={teacher._id}>
-                        {teacher.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -471,7 +438,7 @@ const AdminGiveResults = () => {
                 onClick={() => {
                   setShowModal(false);
                   setEditingResult(null);
-                  setNewResult({ studentId: "", teacherId: "", subject: "", marks: "" });
+                  setNewResult({ studentId: "", subject: "", marks: "" });
                 }}
               >
                 Cancel
