@@ -23,6 +23,8 @@ import { useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useUserFromToken } from "@/Hooks/useUserFromToken";
 import { GoogleTranslate } from "./GoogleTranslate";
+import { FaChalkboardTeacher } from "react-icons/fa";
+import { PiStudent } from "react-icons/pi";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -36,16 +38,26 @@ export function Sidebar() {
       icon: <LayoutDashboard className="h-5 w-5" />,
       href: "/",
     },
-    { title: "Users", icon: <Users className="h-5 w-5" />, href: "/users" },
+
     {
       title: "Classes",
       icon: <BookOpen className="h-5 w-5" />,
       href: "/classes",
     },
     {
-      title: "Give Results",
+      title: "Manage Students",
+      icon: <PiStudent  className="h-5 w-5" />,
+      href: "/manage-students",
+    },
+    {
+      title: "Manage Teachers",
+      icon: <FaChalkboardTeacher className="h-5 w-5" />,
+      href: "/manage-teachers",
+    },
+    {
+      title: "Manage Results",
       icon: <GraduationCap className="h-5 w-5" />,
-      href: "/give-results",
+      href: "/admin-give-results",
     },
     {
       title: "Messages",
@@ -62,7 +74,7 @@ export function Sidebar() {
     },
 
     {
-      title: "Give Results",
+      title: "Manage Results",
       icon: <FileText className="h-5 w-5" />,
       href: "/give-results",
     },

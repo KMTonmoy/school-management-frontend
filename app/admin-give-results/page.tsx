@@ -46,14 +46,16 @@ interface Student {
   email: string;
 }
 
-interface Assignment {
+interface Teacher {
   _id: string;
-  student: Student;
+  name: string;
+  email: string;
 }
 
 interface Result {
   _id: string;
   student: Student;
+  teacher: Teacher;
   subject: string;
   marks: number;
   date: string;
@@ -68,15 +70,17 @@ interface DecodedToken {
   exp: number;
 }
 
-const GiveResults = () => {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [existingResults, setExistingResults] = useState<Result[]>([]);
+const AdminGiveResults = () => {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [resultToDelete, setResultToDelete] = useState<string | null>(null);
   const [editingResult, setEditingResult] = useState<Result | null>(null);
   const [newResult, setNewResult] = useState({
     studentId: "",
+    teacherId: "",
     subject: "",
     marks: "",
   });
@@ -88,18 +92,16 @@ const GiveResults = () => {
     role: string;
   } | null>(null);
 
-  const fetchData = async () => {
+  const fetchAllData = async () => {
     try {
-      const [assignmentsRes, resultsRes] = await Promise.all([
-        axios.get<Assignment[]>("http://localhost:8000/api/teacher/students", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
-        axios.get<Result[]>("http://localhost:8000/api/teacher", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
+      const [studentsRes, teachersRes, resultsRes] = await Promise.all([
+        axios.get<Student[]>("http://localhost:8000/api/students"),
+        axios.get<Teacher[]>("http://localhost:8000/api/teachers"),
+        axios.get<Result[]>("http://localhost:8000/api/all-results"),
       ]);
-      setAssignments(assignmentsRes.data);
-      setExistingResults(resultsRes.data);
+      setStudents(studentsRes.data);
+      setTeachers(teachersRes.data);
+      setResults(resultsRes.data);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to fetch data");
@@ -117,14 +119,14 @@ const GiveResults = () => {
 
     try {
       const decoded: DecodedToken = jwtDecode(token);
-      if (decoded.role !== "teacher") {
+      if (decoded.role !== "admin") {
         window.location.href = "/login";
         return;
       }
 
       setUserInfo({
         id: decoded.id,
-        name: decoded.name || "Teacher",
+        name: decoded.name || "Admin",
         role: decoded.role,
       });
     } catch (error) {
@@ -135,7 +137,7 @@ const GiveResults = () => {
 
   useEffect(() => {
     if (!userInfo) return;
-    fetchData();
+    fetchAllData();
   }, [userInfo]);
 
   const calculateGrade = (marks: number) => {
@@ -172,6 +174,7 @@ const GiveResults = () => {
     setEditingResult(result);
     setNewResult({
       studentId: result.student._id,
+      teacherId: result.teacher._id,
       subject: result.subject,
       marks: result.marks.toString(),
     });
@@ -179,7 +182,7 @@ const GiveResults = () => {
   };
 
   const submitResult = async () => {
-    if (!newResult.studentId || !newResult.subject || !newResult.marks) {
+    if (!newResult.studentId || !newResult.subject || !newResult.marks || !newResult.teacherId) {
       toast.error("Please fill all fields");
       return;
     }
@@ -191,44 +194,38 @@ const GiveResults = () => {
         return;
       }
 
-      const promise = editingResult
-        ? axios.patch(
-            `http://localhost:8000/api/results/${editingResult._id}`,
-            {
-              studentId: newResult.studentId,
-              subject: newResult.subject,
-              marks: marksNum,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          )
-        : axios.post(
-            "http://localhost:8000/api/add-result",
-            {
-              studentId: newResult.studentId,
-              subject: newResult.subject,
-              marks: marksNum,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
+      const payload = {
+        studentId: newResult.studentId,
+        teacherId: newResult.teacherId,
+        subject: newResult.subject,
+        marks: marksNum,
+      };
+
+      const url = editingResult
+        ? `http://localhost:8000/api/admin/${editingResult._id}`
+        : "http://localhost:8000/api/admin";
+
+      const method = editingResult ? "patch" : "post";
+
+      const promise = axios[method](url, payload, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       toast.promise(promise, {
         loading: editingResult ? "Updating result..." : "Adding result...",
         success: () => {
-          fetchData();
+          fetchAllData();
           setShowModal(false);
           setEditingResult(null);
-          setNewResult({ studentId: "", subject: "", marks: "" });
+          setNewResult({ studentId: "", teacherId: "", subject: "", marks: "" });
           return editingResult ? "Result updated!" : "Result added!";
         },
-        error: "Failed to save result",
+        error: (error) => {
+          const message = error.response?.data?.error || "Failed to save result";
+          return message;
+        },
       });
     } catch (error) {
       console.error("Error saving result:", error);
@@ -246,7 +243,7 @@ const GiveResults = () => {
 
     try {
       const promise = axios.delete(
-        `http://localhost:8000/api/results/${resultToDelete}`,
+        `http://localhost:8000/api/admin/${resultToDelete}`,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
@@ -255,10 +252,13 @@ const GiveResults = () => {
       toast.promise(promise, {
         loading: "Deleting result...",
         success: () => {
-          fetchData();
+          fetchAllData();
           return "Result deleted!";
         },
-        error: "Failed to delete result",
+        error: (error) => {
+          const message = error.response?.data?.error || "Failed to delete result";
+          return message;
+        },
       });
     } catch (error) {
       console.error("Error deleting result:", error);
@@ -270,7 +270,7 @@ const GiveResults = () => {
   };
 
   if (loading) return <div className="flex justify-center p-8">Loading...</div>;
-  if (!userInfo || userInfo.role !== "teacher") return <div>Access denied</div>;
+  if (!userInfo || userInfo.role !== "admin") return <div>Access denied</div>;
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -282,13 +282,14 @@ const GiveResults = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <h3 className="text-lg font-medium mb-4">Student Results</h3>
-          {existingResults.length > 0 ? (
+          <h3 className="text-lg font-medium mb-4">All Student Results</h3>
+          {results.length > 0 ? (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Student</TableHead>
+                    <TableHead>Teacher</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Marks</TableHead>
                     <TableHead>Grade</TableHead>
@@ -297,11 +298,12 @@ const GiveResults = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {existingResults.map((result) => (
+                  {results.map((result) => (
                     <TableRow key={result._id}>
                       <TableCell className="font-medium">
                         {result.student.name}
                       </TableCell>
+                      <TableCell>{result.teacher.name}</TableCell>
                       <TableCell>{result.subject}</TableCell>
                       <TableCell>{result.marks}</TableCell>
                       <TableCell>
@@ -349,7 +351,7 @@ const GiveResults = () => {
         onOpenChange={(open) => {
           if (!open) {
             setEditingResult(null);
-            setNewResult({ studentId: "", subject: "", marks: "" });
+            setNewResult({ studentId: "", teacherId: "", subject: "", marks: "" });
           }
           setShowModal(open);
         }}
@@ -363,26 +365,56 @@ const GiveResults = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Student</label>
-              <Select
-                value={newResult.studentId}
-                onValueChange={(value) =>
-                  handleNewResultChange("studentId", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Student" />
-                </SelectTrigger>
-                <SelectContent>
-                  {assignments.map((assignment) => (
-                    <SelectItem
-                      key={assignment.student._id}
-                      value={assignment.student._id}
-                    >
-                      {assignment.student.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {editingResult ? (
+                <div className="p-2 border rounded-md bg-gray-50">
+                  {editingResult.student.name}
+                </div>
+              ) : (
+                <Select
+                  value={newResult.studentId}
+                  onValueChange={(value) =>
+                    handleNewResultChange("studentId", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Student" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students.map((student) => (
+                      <SelectItem key={student._id} value={student._id}>
+                        {student.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Teacher</label>
+              {editingResult ? (
+                <div className="p-2 border rounded-md bg-gray-50">
+                  {editingResult.teacher.name}
+                </div>
+              ) : (
+                <Select
+                  value={newResult.teacherId}
+                  onValueChange={(value) =>
+                    handleNewResultChange("teacherId", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Teacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teachers.map((teacher) => (
+                      <SelectItem key={teacher._id} value={teacher._id}>
+                        {teacher.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div>
@@ -439,7 +471,7 @@ const GiveResults = () => {
                 onClick={() => {
                   setShowModal(false);
                   setEditingResult(null);
-                  setNewResult({ studentId: "", subject: "", marks: "" });
+                  setNewResult({ studentId: "", teacherId: "", subject: "", marks: "" });
                 }}
               >
                 Cancel
@@ -471,4 +503,4 @@ const GiveResults = () => {
   );
 };
 
-export default GiveResults;
+export default AdminGiveResults;

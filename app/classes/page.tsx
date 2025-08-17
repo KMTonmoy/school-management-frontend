@@ -67,7 +67,6 @@ export default function AssignmentManager() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch teachers and students without token
       const [teachersRes, studentsRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/teachers`),
         axios.get(`${API_BASE_URL}/students`),
