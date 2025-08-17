@@ -2,9 +2,29 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Eye, EyeOff, Pencil, Trash2, Plus, Search } from "lucide-react";
 import {
@@ -16,12 +36,16 @@ import {
   PaginationNext,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface Student {
   _id: string;
   name: string;
   email: string;
   class: string;
+  rollNumber: string;
+  role: string;
   createdAt?: string;
   guardian: {
     name: string;
@@ -31,7 +55,9 @@ interface Student {
 }
 
 const ITEMS_PER_PAGE = 10;
-const API_URL = "http://localhost:8000/api/students";
+const API_BASE_URL = "http://localhost:8000/api";
+const STUDENTS_API_URL = `${API_BASE_URL}/students`;
+const REGISTER_STUDENT_URL = `${API_BASE_URL}/auth/register/student`;
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -47,21 +73,27 @@ const ManageStudents = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "student123",
+    role: "student",
     class: "",
+    rollNumber: "",
     guardian: {
       name: "",
       relation: "father",
-      primaryContact: ""
-    }
+      primaryContact: "",
+    },
   });
 
   useEffect(() => {
@@ -70,19 +102,20 @@ const ManageStudents = () => {
 
   useEffect(() => {
     if (searchTerm === "") {
-      setFilteredStudents(students);
+      setFilteredStudents([...students].reverse());
     } else {
-      const filtered = students.filter(student => {
+      const filtered = students.filter((student) => {
         const searchLower = searchTerm.toLowerCase();
         return (
           student.name.toLowerCase().includes(searchLower) ||
           student.email.toLowerCase().includes(searchLower) ||
           student.class.toLowerCase().includes(searchLower) ||
+          student.rollNumber.toLowerCase().includes(searchLower) ||
           student.guardian.name.toLowerCase().includes(searchLower) ||
           student.guardian.primaryContact.includes(searchTerm)
         );
       });
-      setFilteredStudents(filtered);
+      setFilteredStudents(filtered.reverse());
     }
     setCurrentPage(1);
   }, [searchTerm, students]);
@@ -90,8 +123,8 @@ const ManageStudents = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}?sort=-createdAt`, {
-        headers: getAuthHeaders()
+      const response = await fetch(STUDENTS_API_URL, {
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -100,9 +133,11 @@ const ManageStudents = () => {
 
       const data = await response.json();
       setStudents(data);
-      setFilteredStudents(data);
+      setFilteredStudents([...data].reverse());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
     } finally {
       setLoading(false);
     }
@@ -110,53 +145,93 @@ const ManageStudents = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleGuardianChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      guardian: { ...prev.guardian, [name]: value }
+      guardian: { ...prev.guardian, [name]: value },
     }));
   };
 
   const handleSubmit = async () => {
     try {
-      const url = currentStudent ? `${API_URL}/${currentStudent._id}` : API_URL;
+      setIsSubmitting(true);
+      const url = currentStudent ? `${STUDENTS_API_URL}/${currentStudent._id}` : REGISTER_STUDENT_URL;
       const method = currentStudent ? "PUT" : "POST";
+
+      const dataToSend = currentStudent
+        ? {
+            name: formData.name,
+            email: formData.email,
+            class: formData.class,
+            rollNumber: formData.rollNumber,
+            guardian: formData.guardian
+          }
+        : {
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            role: formData.role,
+            class: formData.class,
+            rollNumber: formData.rollNumber,
+            guardian: formData.guardian
+          };
 
       const response = await fetch(url, {
         method,
         headers: getAuthHeaders(),
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (!response.ok) {
-        throw new Error(response.statusText);
+        const errorData = await response.json();
+        throw new Error(errorData.message || response.statusText);
       }
 
-      fetchStudents();
+      await fetchStudents();
       setIsDialogOpen(false);
+      toast.success(currentStudent ? "Student updated successfully" : "Student created successfully");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save student");
+      const errorMessage = err instanceof Error ? err.message : "Failed to save student";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = (id: string) => {
+    setStudentToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!studentToDelete) return;
+    
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      setIsDeleting(true);
+      const response = await fetch(`${STUDENTS_API_URL}/${studentToDelete}`, {
         method: "DELETE",
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
         throw new Error("Failed to delete student");
       }
 
-      fetchStudents();
+      await fetchStudents();
+      toast.success("Student deleted successfully");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete student");
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete student";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setStudentToDelete(null);
     }
   };
 
@@ -166,12 +241,14 @@ const ManageStudents = () => {
       name: "",
       email: "",
       password: "student123",
+      role: "student",
       class: "",
+      rollNumber: "",
       guardian: {
         name: "",
         relation: "father",
-        primaryContact: ""
-      }
+        primaryContact: "",
+      },
     });
     setIsDialogOpen(true);
   };
@@ -182,8 +259,10 @@ const ManageStudents = () => {
       name: student.name,
       email: student.email,
       password: "",
+      role: student.role,
       class: student.class,
-      guardian: student.guardian
+      rollNumber: student.rollNumber,
+      guardian: student.guardian,
     });
     setIsDialogOpen(true);
   };
@@ -210,7 +289,7 @@ const ManageStudents = () => {
         <div className="relative w-full md:w-1/3">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email, class, guardian..."
+            placeholder="Search by name, email, class, roll number..."
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -224,39 +303,117 @@ const ManageStudents = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>{currentStudent ? "Edit Student" : "Create New Student"}</DialogTitle>
+              <DialogTitle>
+                {currentStudent ? "Edit Student" : "Create New Student"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="name" className="text-right">Name</label>
-                <Input id="name" name="name" value={formData.name} onChange={handleInputChange} className="col-span-3" />
+                <label htmlFor="name" className="text-right">
+                  Name
+                </label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="email" className="text-right">Email</label>
-                <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="col-span-3" />
+                <label htmlFor="email" className="text-right">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
               </div>
               {!currentStudent && (
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <label htmlFor="password" className="text-right">Password</label>
-                  <div className="col-span-3 relative">
-                    <Input id="password" name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleInputChange} className="pr-10" />
-                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
+                <>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <label htmlFor="password" className="text-right">
+                      Password
+                    </label>
+                    <div className="col-span-3 relative">
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                  <input type="hidden" name="role" value="student" />
+                </>
               )}
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="class" className="text-right">Class</label>
-                <Input id="class" name="class" value={formData.class} onChange={handleInputChange} className="col-span-3" />
+                <label htmlFor="class" className="text-right">
+                  Class
+                </label>
+                <Input
+                  id="class"
+                  name="class"
+                  value={formData.class}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="guardian-name" className="text-right">Guardian</label>
-                <Input id="guardian-name" name="name" value={formData.guardian.name} onChange={handleGuardianChange} className="col-span-3" />
+                <label htmlFor="rollNumber" className="text-right">
+                  Roll Number
+                </label>
+                <Input
+                  id="rollNumber"
+                  name="rollNumber"
+                  value={formData.rollNumber}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="guardian-relation" className="text-right">Relation</label>
-                <Select value={formData.guardian.relation} onValueChange={(value) => handleGuardianChange({ target: { name: "relation", value } } as React.ChangeEvent<HTMLInputElement>)}>
+                <label htmlFor="guardian-name" className="text-right">
+                  Guardian
+                </label>
+                <Input
+                  id="guardian-name"
+                  name="name"
+                  value={formData.guardian.name}
+                  onChange={handleGuardianChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="guardian-relation" className="text-right">
+                  Relation
+                </label>
+                <Select
+                  value={formData.guardian.relation}
+                  onValueChange={(value) =>
+                    handleGuardianChange({
+                      target: { name: "relation", value },
+                    } as React.ChangeEvent<HTMLInputElement>)
+                  }
+                >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select relation" />
                   </SelectTrigger>
@@ -269,13 +426,21 @@ const ManageStudents = () => {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="guardian-contact" className="text-right">Contact</label>
-                <Input id="guardian-contact" name="primaryContact" value={formData.guardian.primaryContact} onChange={handleGuardianChange} className="col-span-3" />
+                <label htmlFor="guardian-contact" className="text-right">
+                  Contact
+                </label>
+                <Input
+                  id="guardian-contact"
+                  name="primaryContact"
+                  value={formData.guardian.primaryContact}
+                  onChange={handleGuardianChange}
+                  className="col-span-3"
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleSubmit}>
-                {currentStudent ? "Update" : "Create"}
+              <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? "Processing..." : currentStudent ? "Update" : "Create"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -289,6 +454,7 @@ const ManageStudents = () => {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Class</TableHead>
+              <TableHead>Roll Number</TableHead>
               <TableHead>Guardian</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Actions</TableHead>
@@ -301,17 +467,28 @@ const ManageStudents = () => {
                   <TableCell>{student.name}</TableCell>
                   <TableCell>{student.email}</TableCell>
                   <TableCell>{student.class}</TableCell>
+                  <TableCell>{student.rollNumber}</TableCell>
                   <TableCell>
                     <div>{student.guardian.name}</div>
-                    <div className="text-sm text-muted-foreground capitalize">{student.guardian.relation}</div>
+                    <div className="text-sm text-muted-foreground capitalize">
+                      {student.guardian.relation}
+                    </div>
                   </TableCell>
                   <TableCell>{student.guardian.primaryContact}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => openEditDialog(student)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(student)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(student._id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => confirmDelete(student._id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -320,7 +497,7 @@ const ManageStudents = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   No students found
                 </TableCell>
               </TableRow>
@@ -339,7 +516,9 @@ const ManageStudents = () => {
                   e.preventDefault();
                   handlePageChange(currentPage - 1);
                 }}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
               />
             </PaginationItem>
 
@@ -384,12 +563,33 @@ const ManageStudents = () => {
                   e.preventDefault();
                   handlePageChange(currentPage + 1);
                 }}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
               />
             </PaginationItem>
           </PaginationContent>
         </Pagination>
       )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the student's record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

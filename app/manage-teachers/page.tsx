@@ -2,9 +2,29 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Eye, EyeOff, Pencil, Trash2, Plus, Search } from "lucide-react";
 import {
@@ -16,6 +36,16 @@ import {
   PaginationNext,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Teacher {
   _id: string;
@@ -27,7 +57,9 @@ interface Teacher {
 }
 
 const ITEMS_PER_PAGE = 10;
-const API_URL = "http://localhost:8000/api/teachers";
+const API_URL = "http://localhost:8000/api";
+const TEACHERS_API_URL = `${API_URL}/teachers`;
+const REGISTER_TEACHER_URL = `${API_URL}/auth/register/teacher`;
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -49,7 +81,7 @@ const subjectOptions = [
   "Geography",
   "Art",
   "Music",
-  "Physical Education"
+  "Physical Education",
 ];
 
 const ManageTeachers = () => {
@@ -58,17 +90,21 @@ const ManageTeachers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "teacher123",
     subjects: [] as string[],
-    qualification: ""
+    qualification: "",
   });
 
   useEffect(() => {
@@ -79,13 +115,15 @@ const ManageTeachers = () => {
     if (searchTerm === "") {
       setFilteredTeachers(teachers);
     } else {
-      const filtered = teachers.filter(teacher => {
+      const filtered = teachers.filter((teacher) => {
         const searchLower = searchTerm.toLowerCase();
         return (
           teacher.name.toLowerCase().includes(searchLower) ||
           teacher.email.toLowerCase().includes(searchLower) ||
           teacher.qualification.toLowerCase().includes(searchLower) ||
-          teacher.subjects.some(subject => subject.toLowerCase().includes(searchLower))
+          teacher.subjects.some((subject) =>
+            subject.toLowerCase().includes(searchLower)
+          )
         );
       });
       setFilteredTeachers(filtered);
@@ -96,8 +134,8 @@ const ManageTeachers = () => {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}?sort=-createdAt`, {
-        headers: getAuthHeaders()
+      const response = await fetch(TEACHERS_API_URL, {
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -105,10 +143,13 @@ const ManageTeachers = () => {
       }
 
       const data = await response.json();
-      setTeachers(data);
-      setFilteredTeachers(data);
+      const reversedData = [...data].reverse();
+      setTeachers(reversedData);
+      setFilteredTeachers(reversedData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
     } finally {
       setLoading(false);
     }
@@ -116,25 +157,28 @@ const ManageTeachers = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubjectsChange = (value: string) => {
     if (!formData.subjects.includes(value)) {
-      setFormData(prev => ({ ...prev, subjects: [...prev.subjects, value] }));
+      setFormData((prev) => ({ ...prev, subjects: [...prev.subjects, value] }));
     }
   };
 
   const removeSubject = (subjectToRemove: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      subjects: prev.subjects.filter(subject => subject !== subjectToRemove)
+      subjects: prev.subjects.filter((subject) => subject !== subjectToRemove),
     }));
   };
 
   const handleSubmit = async () => {
     try {
-      const url = currentTeacher ? `${API_URL}/${currentTeacher._id}` : API_URL;
+      setIsSubmitting(true);
+      const url = currentTeacher
+        ? `${TEACHERS_API_URL}/${currentTeacher._id}`
+        : REGISTER_TEACHER_URL;
       const method = currentTeacher ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -147,27 +191,41 @@ const ManageTeachers = () => {
         throw new Error(response.statusText);
       }
 
-      fetchTeachers();
+      await fetchTeachers();
       setIsDialogOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save teacher");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = (id: string) => {
+    setTeacherToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!teacherToDelete) return;
+
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      setIsDeleting(true);
+      const response = await fetch(`${TEACHERS_API_URL}/${teacherToDelete}`, {
         method: "DELETE",
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
         throw new Error("Failed to delete teacher");
       }
 
-      fetchTeachers();
+      await fetchTeachers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete teacher");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setTeacherToDelete(null);
     }
   };
 
@@ -178,7 +236,7 @@ const ManageTeachers = () => {
       email: "",
       password: "teacher123",
       subjects: [],
-      qualification: ""
+      qualification: "",
     });
     setIsDialogOpen(true);
   };
@@ -190,7 +248,7 @@ const ManageTeachers = () => {
       email: teacher.email,
       password: "",
       subjects: teacher.subjects,
-      qualification: teacher.qualification
+      qualification: teacher.qualification,
     });
     setIsDialogOpen(true);
   };
@@ -207,8 +265,10 @@ const ManageTeachers = () => {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-8">Loading teachers...</div>;
-  if (error) return <div className="text-red-500 text-center py-8">Error: {error}</div>;
+  if (loading)
+    return <div className="flex justify-center py-8">Loading teachers...</div>;
+  if (error)
+    return <div className="text-red-500 text-center py-8">Error: {error}</div>;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -231,42 +291,92 @@ const ManageTeachers = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>{currentTeacher ? "Edit Teacher" : "Create New Teacher"}</DialogTitle>
+              <DialogTitle>
+                {currentTeacher ? "Edit Teacher" : "Create New Teacher"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="name" className="text-right">Name</label>
-                <Input id="name" name="name" value={formData.name} onChange={handleInputChange} className="col-span-3" />
+                <label htmlFor="name" className="text-right">
+                  Name
+                </label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="email" className="text-right">Email</label>
-                <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="col-span-3" />
+                <label htmlFor="email" className="text-right">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
               </div>
               {!currentTeacher && (
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <label htmlFor="password" className="text-right">Password</label>
+                  <label htmlFor="password" className="text-right">
+                    Password
+                  </label>
                   <div className="col-span-3 relative">
-                    <Input id="password" name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleInputChange} className="pr-10" />
-                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
               )}
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="qualification" className="text-right">Qualification</label>
-                <Input id="qualification" name="qualification" value={formData.qualification} onChange={handleInputChange} className="col-span-3" />
+                <label htmlFor="qualification" className="text-right">
+                  Qualification
+                </label>
+                <Input
+                  id="qualification"
+                  name="qualification"
+                  value={formData.qualification}
+                  onChange={handleInputChange}
+                  className="col-span-3"
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="subjects" className="text-right">Subjects</label>
+                <label htmlFor="subjects" className="text-right">
+                  Subjects
+                </label>
                 <Select onValueChange={handleSubjectsChange}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select subjects">
-                      {formData.subjects.length > 0 ? `${formData.subjects.length} selected` : "Select subjects"}
+                      {formData.subjects.length > 0
+                        ? `${formData.subjects.length} selected`
+                        : "Select subjects"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {subjectOptions.map(subject => (
+                    {subjectOptions.map((subject) => (
                       <SelectItem key={subject} value={subject}>
                         {subject}
                       </SelectItem>
@@ -277,15 +387,29 @@ const ManageTeachers = () => {
               {formData.subjects.length > 0 && (
                 <div className="grid grid-cols-4 gap-4">
                   <div className="col-start-2 col-span-3 flex flex-wrap gap-2">
-                    {formData.subjects.map(subject => (
-                      <Badge key={subject} variant="outline" className="flex items-center gap-1">
+                    {formData.subjects.map((subject) => (
+                      <Badge
+                        key={subject}
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
                         {subject}
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => removeSubject(subject)}
                           className="text-muted-foreground hover:text-destructive"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                           </svg>
@@ -297,8 +421,16 @@ const ManageTeachers = () => {
               )}
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleSubmit}>
-                {currentTeacher ? "Update" : "Create"}
+              <Button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? "Processing..."
+                  : currentTeacher
+                  ? "Update"
+                  : "Create"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -325,17 +457,27 @@ const ManageTeachers = () => {
                   <TableCell>{teacher.qualification}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {teacher.subjects.map(subject => (
-                        <Badge key={subject} variant="outline">{subject}</Badge>
+                      {teacher.subjects.map((subject) => (
+                        <Badge key={subject} variant="outline">
+                          {subject}
+                        </Badge>
                       ))}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => openEditDialog(teacher)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(teacher)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(teacher._id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => confirmDelete(teacher._id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -363,7 +505,9 @@ const ManageTeachers = () => {
                   e.preventDefault();
                   handlePageChange(currentPage - 1);
                 }}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                }
               />
             </PaginationItem>
 
@@ -408,12 +552,37 @@ const ManageTeachers = () => {
                   e.preventDefault();
                   handlePageChange(currentPage + 1);
                 }}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
               />
             </PaginationItem>
           </PaginationContent>
         </Pagination>
       )}
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              teacher record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
