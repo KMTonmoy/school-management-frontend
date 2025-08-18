@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,24 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsClient(true);
+    if (typeof window !== "undefined") {
+      const rememberedEmail = localStorage.getItem("rememberEmail");
+      if (rememberedEmail) {
+        setEmail(rememberedEmail);
+        setRememberMe(true);
+      }
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Basic validation
     if (!email || !password) {
       toast.error("Please fill in all fields");
       setLoading(false);
@@ -50,21 +61,21 @@ const LoginPage = () => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("role", data.role);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("role", data.role);
+
+          if (rememberMe) {
+            localStorage.setItem("rememberEmail", email);
+          } else {
+            localStorage.removeItem("rememberEmail");
+          }
+        }
 
         toast.success("Welcome back! Redirecting to your dashboard...", {
           duration: 4000,
         });
 
-        // Store remember me preference
-        if (rememberMe) {
-          localStorage.setItem("rememberEmail", email);
-        } else {
-          localStorage.removeItem("rememberEmail");
-        }
-
-        // Force full page refresh to ensure all auth state is properly loaded
         window.location.href = "/";
       } else {
         let errorMessage = "Login failed";
@@ -93,36 +104,27 @@ const LoginPage = () => {
     }
   };
 
-  // Pre-fill email if remember me was checked previously
-  useState(() => {
-    const rememberedEmail = localStorage.getItem("rememberEmail");
-    if (rememberedEmail) {
-      setEmail(rememberedEmail);
-      setRememberMe(true);
-    }
-  });
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Toaster
         position="top-center"
         toastOptions={{
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: "#363636",
+            color: "#fff",
           },
           success: {
             duration: 4000,
             iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
+              primary: "#10B981",
+              secondary: "#fff",
             },
           },
           error: {
             duration: 5000,
             iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
+              primary: "#EF4444",
+              secondary: "#fff",
             },
           },
         }}
@@ -209,7 +211,7 @@ const LoginPage = () => {
                     type="button"
                     onClick={() =>
                       toast("Please contact support to reset your password", {
-                        icon: 'ℹ️',
+                        icon: "ℹ️",
                       })
                     }
                   >
