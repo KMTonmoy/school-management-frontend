@@ -44,6 +44,7 @@ interface Student {
   _id: string;
   name: string;
   email: string;
+  class?: string;
 }
 
 interface Teacher {
@@ -55,7 +56,7 @@ interface Teacher {
 interface Result {
   _id: string;
   student: Student;
-  teacher: Teacher | { _id: "admin"; name: string };
+  teacher?: Teacher;
   subject: string;
   marks: number;
   date: string;
@@ -70,15 +71,17 @@ interface DecodedToken {
   exp: number;
 }
 
-const AdminGiveResults = () => {
+const ManageResults = () => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [results, setResults] = useState<Result[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [existingResults, setExistingResults] = useState<Result[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [resultToDelete, setResultToDelete] = useState<string | null>(null);
   const [editingResult, setEditingResult] = useState<Result | null>(null);
   const [newResult, setNewResult] = useState({
     studentId: "",
+    teacherId: "",
     subject: "",
     marks: "",
   });
@@ -89,15 +92,40 @@ const AdminGiveResults = () => {
     name: string;
     role: string;
   } | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterSubject, setFilterSubject] = useState("all");
 
-  const fetchAllData = async () => {
+  const fetchData = async () => {
     try {
-      const [studentsRes, resultsRes] = await Promise.all([
-        axios.get<Student[]>("http://localhost:8000/api/students"),
-        axios.get<Result[]>("http://localhost:8000/api/all-results"),
+      const [studentsRes, teachersRes, resultsRes] = await Promise.all([
+        axios.get<Student[]>(
+          "https://sl-backend-nine.vercel.app/api/students",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        ),
+        axios.get<Teacher[]>(
+          "https://sl-backend-nine.vercel.app/api/teachers",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        ),
+        axios.get<Result[]>(
+          "https://sl-backend-nine.vercel.app/api/all-results",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        ),
       ]);
       setStudents(studentsRes.data);
-      setResults(resultsRes.data);
+      setTeachers(teachersRes.data);
+      setExistingResults(resultsRes.data);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to fetch data");
@@ -133,7 +161,7 @@ const AdminGiveResults = () => {
 
   useEffect(() => {
     if (!userInfo) return;
-    fetchAllData();
+    fetchData();
   }, [userInfo]);
 
   const calculateGrade = (marks: number) => {
@@ -170,15 +198,30 @@ const AdminGiveResults = () => {
     setEditingResult(result);
     setNewResult({
       studentId: result.student._id,
+      teacherId: result.teacher?._id || "",
       subject: result.subject,
       marks: result.marks.toString(),
     });
     setShowModal(true);
   };
 
+  const filteredResults = existingResults.filter((result) => {
+    const matchesSearch =
+      result.student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (result.student.class &&
+        result.student.class
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())) ||
+      (result.teacher &&
+        result.teacher.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSubject =
+      filterSubject === "all" || result.subject === filterSubject;
+    return matchesSearch && matchesSubject;
+  });
+
   const submitResult = async () => {
     if (!newResult.studentId || !newResult.subject || !newResult.marks) {
-      toast.error("Please fill all fields");
+      toast.error("Please fill all required fields");
       return;
     }
 
@@ -191,35 +234,42 @@ const AdminGiveResults = () => {
 
       const payload = {
         studentId: newResult.studentId,
+        teacherId: newResult.teacherId || undefined,
         subject: newResult.subject,
         marks: marksNum,
       };
 
-      const url = editingResult
-        ? `http://localhost:8000/api/admin/${editingResult._id}`
-        : "http://localhost:8000/api/admin-addRes";
-
-      const method = editingResult ? "patch" : "post";
-
-      const promise = axios[method](url, payload, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const promise = editingResult
+        ? axios.patch(
+            `https://sl-backend-nine.vercel.app/api/admin/${editingResult._id}`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          )
+        : axios.post("https://sl-backend-nine.vercel.app/api/admin", payload, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
 
       toast.promise(promise, {
         loading: editingResult ? "Updating result..." : "Adding result...",
         success: () => {
-          fetchAllData();
+          fetchData();
           setShowModal(false);
           setEditingResult(null);
-          setNewResult({ studentId: "", subject: "", marks: "" });
+          setNewResult({
+            studentId: "",
+            teacherId: "",
+            subject: "",
+            marks: "",
+          });
           return editingResult ? "Result updated!" : "Result added!";
         },
-        error: (error) => {
-          const message = error.response?.data?.error || "Failed to save result";
-          return message;
-        },
+        error: "Failed to save result",
       });
     } catch (error) {
       console.error("Error saving result:", error);
@@ -237,7 +287,7 @@ const AdminGiveResults = () => {
 
     try {
       const promise = axios.delete(
-        `http://localhost:8000/api/admin/${resultToDelete}`,
+        `https://sl-backend-nine.vercel.app/api/admin/${resultToDelete}`,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
@@ -246,13 +296,10 @@ const AdminGiveResults = () => {
       toast.promise(promise, {
         loading: "Deleting result...",
         success: () => {
-          fetchAllData();
+          fetchData();
           return "Result deleted!";
         },
-        error: (error) => {
-          const message = error.response?.data?.error || "Failed to delete result";
-          return message;
-        },
+        error: "Failed to delete result",
       });
     } catch (error) {
       console.error("Error deleting result:", error);
@@ -271,41 +318,80 @@ const AdminGiveResults = () => {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Welcome, {userInfo.name}</CardTitle>
+            <div>
+              <CardTitle>Welcome, {userInfo.name}</CardTitle>
+              <p className="text-sm text-gray-500">
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            </div>
             <Button onClick={() => setShowModal(true)}>Add New Result</Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <h3 className="text-lg font-medium mb-4">All Student Results</h3>
-          {results.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Added By</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Marks</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {results.map((result) => (
+        <CardContent className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Input
+                placeholder="Search by student name, class, or teacher..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Select
+              value={filterSubject}
+              onValueChange={(value) => setFilterSubject(value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by subject" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subjects</SelectItem>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject} value={subject}>
+                    {subject}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Teacher</TableHead>
+                  <TableHead>Marks</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredResults.length > 0 ? (
+                  filteredResults.map((result) => (
                     <TableRow key={result._id}>
                       <TableCell className="font-medium">
                         {result.student.name}
                       </TableCell>
-                      <TableCell>
-                        {result.teacher._id === "admin" ? "Admin" : result.teacher.name}
-                      </TableCell>
+                      <TableCell>{result.student.class || "-"}</TableCell>
                       <TableCell>{result.subject}</TableCell>
+                      <TableCell>
+                        {result.teacher?.name || "Not assigned"}
+                      </TableCell>
                       <TableCell>{result.marks}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={getGradeColor(calculateGrade(result.marks))}
+                          className={getGradeColor(
+                            calculateGrade(result.marks)
+                          )}
                         >
                           {calculateGrade(result.marks)}
                         </Badge>
@@ -330,13 +416,20 @@ const AdminGiveResults = () => {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <p className="text-gray-500">No results entered yet</p>
-          )}
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="text-center py-8 text-gray-500"
+                    >
+                      No results found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -345,12 +438,17 @@ const AdminGiveResults = () => {
         onOpenChange={(open) => {
           if (!open) {
             setEditingResult(null);
-            setNewResult({ studentId: "", subject: "", marks: "" });
+            setNewResult({
+              studentId: "",
+              teacherId: "",
+              subject: "",
+              marks: "",
+            });
           }
           setShowModal(open);
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editingResult ? "Edit Result" : "Add New Result"}
@@ -358,34 +456,53 @@ const AdminGiveResults = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Student</label>
-              {editingResult ? (
-                <div className="p-2 border rounded-md bg-gray-50">
-                  {editingResult.student.name}
-                </div>
-              ) : (
-                <Select
-                  value={newResult.studentId}
-                  onValueChange={(value) =>
-                    handleNewResultChange("studentId", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((student) => (
-                      <SelectItem key={student._id} value={student._id}>
-                        {student.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <label className="block text-sm font-medium mb-1">
+                Student <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={newResult.studentId}
+                onValueChange={(value) =>
+                  handleNewResultChange("studentId", value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Student" />
+                </SelectTrigger>
+                <SelectContent>
+                  {students.map((student) => (
+                    <SelectItem key={student._id} value={student._id}>
+                      {student.name} {student.class && `(${student.class})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Subject</label>
+              <label className="block text-sm font-medium mb-1">Teacher</label>
+              <Select
+                value={newResult.teacherId}
+                onValueChange={(value) =>
+                  handleNewResultChange("teacherId", value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Teacher  " />
+                </SelectTrigger>
+                <SelectContent>
+                  {teachers.map((teacher) => (
+                    <SelectItem key={teacher._id} value={teacher._id}>
+                      {teacher.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Subject <span className="text-red-500">*</span>
+              </label>
               <Select
                 value={newResult.subject}
                 onValueChange={(value) =>
@@ -407,7 +524,7 @@ const AdminGiveResults = () => {
 
             <div>
               <label className="block text-sm font-medium mb-1">
-                Marks (0-100)
+                Marks (0-100) <span className="text-red-500">*</span>
               </label>
               <Input
                 type="number"
@@ -438,7 +555,12 @@ const AdminGiveResults = () => {
                 onClick={() => {
                   setShowModal(false);
                   setEditingResult(null);
-                  setNewResult({ studentId: "", subject: "", marks: "" });
+                  setNewResult({
+                    studentId: "",
+                    teacherId: "",
+                    subject: "",
+                    marks: "",
+                  });
                 }}
               >
                 Cancel
@@ -470,4 +592,4 @@ const AdminGiveResults = () => {
   );
 };
 
-export default AdminGiveResults;
+export default ManageResults;

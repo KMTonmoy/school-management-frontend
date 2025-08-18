@@ -63,7 +63,9 @@ export const AdminPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get<User[]>("http://localhost:8000/api/users");
+        const response = await axios.get<User[]>(
+          "https://sl-backend-nine.vercel.app/api/users"
+        );
         setUsers(response.data);
         animateCounts(response.data);
         setLoading(false);
@@ -196,7 +198,7 @@ export const AdminPage = () => {
       };
       if (currentUser) {
         const response = await axios.put<User>(
-          `http://localhost:8000/api/users/${currentUser._id}`,
+          `https://sl-backend-nine.vercel.app/api/users/${currentUser._id}`,
           payload
         );
         setUsers(
@@ -204,7 +206,10 @@ export const AdminPage = () => {
         );
         toast.success("User updated successfully");
       } else {
-        const response = await axios.post<User>(`http://localhost:8000/api/users`, payload);
+        const response = await axios.post<User>(
+          `https://sl-backend-nine.vercel.app/api/users`,
+          payload
+        );
         setUsers([...users, response.data]);
         toast.success("User created successfully");
       }
@@ -217,7 +222,7 @@ export const AdminPage = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await axios.delete(`http://localhost:8000/api/users/${id}`);
+      await axios.delete(`https://sl-backend-nine.vercel.app/api/users/${id}`);
       setUsers(users.filter((user) => user._id !== id));
       toast.success("User deleted successfully");
       setCurrentPage(1);
@@ -232,6 +237,20 @@ export const AdminPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">Welcome Admin</h1>
+        <p className="text-gray-600">
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+          {", "}
+          {new Date().toLocaleTimeString()}
+        </p>
+      </div>
+
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <FaSearch className="absolute left-3 top-3 text-gray-400" />
@@ -261,15 +280,6 @@ export const AdminPage = () => {
         </Select>
       </div>
 
-      <div className="flex justify-end gap-4 mb-6">
-        <Button onClick={() => openCreateDialog("teacher")}>
-          <FaPlus className="mr-2" /> Create Teacher
-        </Button>
-        <Button onClick={() => openCreateDialog("student")}>
-          <FaPlus className="mr-2" /> Create Student
-        </Button>
-      </div>
-
       <UserCards
         displayCounts={displayCounts}
         filteredCount={filteredUsers.length}
@@ -282,11 +292,7 @@ export const AdminPage = () => {
           <CardTitle>All Users</CardTitle>
         </CardHeader>
         <CardContent>
-          <UserTable
-            users={paginatedUsers}
-            onEdit={openEditDialog}
-            onDelete={handleDelete}
-          />{" "}
+          <UserTable users={paginatedUsers} />
         </CardContent>
       </Card>
 
@@ -295,25 +301,6 @@ export const AdminPage = () => {
         totalPages={totalPages}
         handlePageChange={handlePageChange}
       />
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>
-              {currentUser ? "Edit User" : `Create New ${formData.role}`}
-            </DialogTitle>
-          </DialogHeader>
-
-          <UserForm
-            formData={formData}
-            currentUser={currentUser}
-            handleInputChange={handleInputChange}
-            handleGuardianChange={handleGuardianChange}
-            handleRoleChange={handleRoleChange}
-            handleSubmit={handleSubmit}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

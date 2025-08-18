@@ -57,7 +57,7 @@ interface Teacher {
 }
 
 const ITEMS_PER_PAGE = 10;
-const API_URL = "http://localhost:8000/api";
+const API_URL = "https://sl-backend-nine.vercel.app/api";
 const TEACHERS_API_URL = `${API_URL}/teachers`;
 const REGISTER_TEACHER_URL = `${API_URL}/auth/register/teacher`;
 
@@ -102,7 +102,7 @@ const ManageTeachers = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    password: "teacher123",
+    password: "teacher1234",
     subjects: [] as string[],
     qualification: "",
   });
@@ -234,7 +234,7 @@ const ManageTeachers = () => {
     setFormData({
       name: "",
       email: "",
-      password: "teacher123",
+      password: "teacher1234",
       subjects: [],
       qualification: "",
     });

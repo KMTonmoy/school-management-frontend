@@ -56,7 +56,7 @@ const MyResults = () => {
 
   const fetchStudentResults = async (studentId: string) => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/student/${studentId}`, {
+      const response = await axios.get(`https://sl-backend-nine.vercel.app/api/student/${studentId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
       const reversedData = [...response.data].reverse();

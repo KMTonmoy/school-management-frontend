@@ -55,7 +55,7 @@ interface Student {
 }
 
 const ITEMS_PER_PAGE = 10;
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = "https://sl-backend-nine.vercel.app/api";
 const STUDENTS_API_URL = `${API_BASE_URL}/students`;
 const REGISTER_STUDENT_URL = `${API_BASE_URL}/auth/register/student`;
 

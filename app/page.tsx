@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { StudentPage } from "@/components/StudentPage";
-import TeacherPage from "@/components/TeacherPage";
+ import TeacherPage from "@/components/TeacherPage";
 import { AdminPage } from "@/components/AdminPage";
+import StudentPage from "@/components/StudentPage";
 
 const DashboardPage = () => {
   const router = useRouter();

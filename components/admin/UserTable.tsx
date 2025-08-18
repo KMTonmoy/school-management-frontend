@@ -8,15 +8,12 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { UserActions } from "./UserActions";
 
 interface UserTableProps {
   users: User[];
-  onEdit: (user: User) => void;
-  onDelete: (id: string) => void;
 }
 
-export const UserTable = ({ users, onEdit, onDelete }: UserTableProps) => {
+export const UserTable = ({ users }: UserTableProps) => {
   return (
     <Table>
       <TableHeader>
@@ -25,7 +22,6 @@ export const UserTable = ({ users, onEdit, onDelete }: UserTableProps) => {
           <TableHead>Email</TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Joined</TableHead>
-          <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -49,9 +45,6 @@ export const UserTable = ({ users, onEdit, onDelete }: UserTableProps) => {
               </TableCell>
               <TableCell>
                 {new Date(user.createdAt || "").toLocaleDateString()}
-              </TableCell>
-              <TableCell>
-                <UserActions user={user} onEdit={onEdit} onDelete={onDelete} />
               </TableCell>
             </TableRow>
           ))

@@ -41,14 +41,11 @@ const TeacherDashboard = () => {
   const fetchData = async () => {
     try {
       const [studentsRes, resultsRes] = await Promise.all([
-        axios.get<Student[]>(
-          "https://sl-backend-nine.vercel.app/api/teacher/students",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        ),
+        axios.get<Student[]>("https://sl-backend-nine.vercel.app/api/teacher/students", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }),
         axios.get<Result[]>("https://sl-backend-nine.vercel.app/api/teacher", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }),

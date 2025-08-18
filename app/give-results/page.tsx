@@ -91,10 +91,10 @@ const GiveResults = () => {
   const fetchData = async () => {
     try {
       const [assignmentsRes, resultsRes] = await Promise.all([
-        axios.get<Assignment[]>("http://localhost:8000/api/teacher/students", {
+        axios.get<Assignment[]>("https://sl-backend-nine.vercel.app/api/teacher/students", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }),
-        axios.get<Result[]>("http://localhost:8000/api/teacher", {
+        axios.get<Result[]>("https://sl-backend-nine.vercel.app/api/teacher", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }),
       ]);
@@ -193,7 +193,7 @@ const GiveResults = () => {
 
       const promise = editingResult
         ? axios.patch(
-            `http://localhost:8000/api/results/${editingResult._id}`,
+            `https://sl-backend-nine.vercel.app/api/results/${editingResult._id}`,
             {
               studentId: newResult.studentId,
               subject: newResult.subject,
@@ -206,7 +206,7 @@ const GiveResults = () => {
             }
           )
         : axios.post(
-            "http://localhost:8000/api/add-result",
+            "https://sl-backend-nine.vercel.app/api/add-result",
             {
               studentId: newResult.studentId,
               subject: newResult.subject,
@@ -246,7 +246,7 @@ const GiveResults = () => {
 
     try {
       const promise = axios.delete(
-        `http://localhost:8000/api/results/${resultToDelete}`,
+        `https://sl-backend-nine.vercel.app/api/results/${resultToDelete}`,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
