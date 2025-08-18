@@ -98,30 +98,15 @@ const ManageResults = () => {
   const fetchData = async () => {
     try {
       const [studentsRes, teachersRes, resultsRes] = await Promise.all([
-        axios.get<Student[]>(
-          "https://sl-backend-nine.vercel.app/api/students",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        ),
-        axios.get<Teacher[]>(
-          "https://sl-backend-nine.vercel.app/api/teachers",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        ),
-        axios.get<Result[]>(
-          "https://sl-backend-nine.vercel.app/api/all-results",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        ),
+        axios.get<Student[]>("https://sl-backend-nine.vercel.app/api/students", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }),
+        axios.get<Teacher[]>("https://sl-backend-nine.vercel.app/api/teachers", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }),
+        axios.get<Result[]>("https://sl-backend-nine.vercel.app/api/all-results", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }),
       ]);
       setStudents(studentsRes.data);
       setTeachers(teachersRes.data);
@@ -175,18 +160,12 @@ const ManageResults = () => {
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
-      case "A+":
-        return "bg-green-100 text-green-800";
-      case "A":
-        return "bg-green-50 text-green-700";
-      case "B":
-        return "bg-blue-50 text-blue-700";
-      case "C":
-        return "bg-yellow-50 text-yellow-700";
-      case "D":
-        return "bg-orange-50 text-orange-700";
-      default:
-        return "bg-red-50 text-red-700";
+      case "A+": return "bg-green-100 text-green-800";
+      case "A": return "bg-green-50 text-green-700";
+      case "B": return "bg-blue-50 text-blue-700";
+      case "C": return "bg-yellow-50 text-yellow-700";
+      case "D": return "bg-orange-50 text-orange-700";
+      default: return "bg-red-50 text-red-700";
     }
   };
 
@@ -207,13 +186,9 @@ const ManageResults = () => {
 
   const filteredResults = existingResults.filter((result) => {
     const matchesSearch =
-      result.student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (result.student.class &&
-        result.student.class
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())) ||
-      (result.teacher &&
-        result.teacher.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      result.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (result.student?.class?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (result.teacher?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesSubject =
       filterSubject === "all" || result.subject === filterSubject;
     return matchesSearch && matchesSubject;
@@ -227,8 +202,8 @@ const ManageResults = () => {
 
     try {
       const marksNum = parseInt(newResult.marks);
-      if (isNaN(marksNum) || marksNum < 0 || marksNum > 100) {
-        toast.error("Please enter valid marks (0-100)");
+      if (isNaN(marksNum) ){
+        toast.error("Please enter valid marks");
         return;
       }
 
@@ -240,19 +215,11 @@ const ManageResults = () => {
       };
 
       const promise = editingResult
-        ? axios.patch(
-            `https://sl-backend-nine.vercel.app/api/admin/${editingResult._id}`,
-            payload,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          )
+        ? axios.patch(`https://sl-backend-nine.vercel.app/api/admin/${editingResult._id}`, payload, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          })
         : axios.post("https://sl-backend-nine.vercel.app/api/admin", payload, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
 
       toast.promise(promise, {
@@ -288,9 +255,7 @@ const ManageResults = () => {
     try {
       const promise = axios.delete(
         `https://sl-backend-nine.vercel.app/api/admin/${resultToDelete}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
       );
 
       toast.promise(promise, {
@@ -378,21 +343,14 @@ const ManageResults = () => {
                   filteredResults.map((result) => (
                     <TableRow key={result._id}>
                       <TableCell className="font-medium">
-                        {result.student.name}
+                        {result.student?.name || "Unknown"}
                       </TableCell>
-                      <TableCell>{result.student.class || "-"}</TableCell>
+                      <TableCell>{result.student?.class || "-"}</TableCell>
                       <TableCell>{result.subject}</TableCell>
-                      <TableCell>
-                        {result.teacher?.name || "Not assigned"}
-                      </TableCell>
+                      <TableCell>{result.teacher?.name || "Not assigned"}</TableCell>
                       <TableCell>{result.marks}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={getGradeColor(
-                            calculateGrade(result.marks)
-                          )}
-                        >
+                        <Badge variant="outline" className={getGradeColor(calculateGrade(result.marks))}>
                           {calculateGrade(result.marks)}
                         </Badge>
                       </TableCell>
@@ -419,10 +377,7 @@ const ManageResults = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center py-8 text-gray-500"
-                    >
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       No results found
                     </TableCell>
                   </TableRow>
@@ -433,26 +388,10 @@ const ManageResults = () => {
         </CardContent>
       </Card>
 
-      <Dialog
-        open={showModal}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditingResult(null);
-            setNewResult({
-              studentId: "",
-              teacherId: "",
-              subject: "",
-              marks: "",
-            });
-          }
-          setShowModal(open);
-        }}
-      >
+      <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {editingResult ? "Edit Result" : "Add New Result"}
-            </DialogTitle>
+            <DialogTitle>{editingResult ? "Edit Result" : "Add New Result"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -461,9 +400,7 @@ const ManageResults = () => {
               </label>
               <Select
                 value={newResult.studentId}
-                onValueChange={(value) =>
-                  handleNewResultChange("studentId", value)
-                }
+                onValueChange={(value) => handleNewResultChange("studentId", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Student" />
@@ -482,12 +419,10 @@ const ManageResults = () => {
               <label className="block text-sm font-medium mb-1">Teacher</label>
               <Select
                 value={newResult.teacherId}
-                onValueChange={(value) =>
-                  handleNewResultChange("teacherId", value)
-                }
+                onValueChange={(value) => handleNewResultChange("teacherId", value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Teacher  " />
+                  <SelectValue placeholder="Select Teacher" />
                 </SelectTrigger>
                 <SelectContent>
                   {teachers.map((teacher) => (
@@ -505,9 +440,7 @@ const ManageResults = () => {
               </label>
               <Select
                 value={newResult.subject}
-                onValueChange={(value) =>
-                  handleNewResultChange("subject", value)
-                }
+                onValueChange={(value) => handleNewResultChange("subject", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Subject" />
@@ -538,31 +471,14 @@ const ManageResults = () => {
             {newResult.marks && (
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-medium">Grade:</span>
-                <Badge
-                  variant="outline"
-                  className={getGradeColor(
-                    calculateGrade(parseInt(newResult.marks))
-                  )}
-                >
+                <Badge variant="outline" className={getGradeColor(calculateGrade(parseInt(newResult.marks)))}>
                   {calculateGrade(parseInt(newResult.marks))}
                 </Badge>
               </div>
             )}
 
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowModal(false);
-                  setEditingResult(null);
-                  setNewResult({
-                    studentId: "",
-                    teacherId: "",
-                    subject: "",
-                    marks: "",
-                  });
-                }}
-              >
+              <Button variant="outline" onClick={() => setShowModal(false)}>
                 Cancel
               </Button>
               <Button onClick={submitResult}>
@@ -578,8 +494,7 @@ const ManageResults = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              result record.
+              This action cannot be undone. This will permanently delete the result record.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
