@@ -85,7 +85,7 @@ const ManageStudents = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    password: "student123",
+    password: "student1234",
     role: "student",
     class: "",
     rollNumber: "",
@@ -240,7 +240,7 @@ const ManageStudents = () => {
     setFormData({
       name: "",
       email: "",
-      password: "student123",
+      password: "student1234",
       role: "student",
       class: "",
       rollNumber: "",
